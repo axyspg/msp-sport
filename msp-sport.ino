@@ -11,6 +11,13 @@
  * FrSkySport Library   (c) Pawelsky 20150725 (http://www.rcgroups.com/forums/showthread.php?t=2245978)
  *                      Not for commercial use
  *                      
+ *                      
+ * MinimOSD Rx ---> ProMini Rx                     
+ * ProMini D2 --> 4k7 --> Receiver S.Port  
+ * GND -- GND
+ * 5V -- 5V
+ * No other.                     
+ *                      
  */
 
 
