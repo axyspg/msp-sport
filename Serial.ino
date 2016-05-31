@@ -135,15 +135,14 @@ void serialMSPCheck()
     Serial.println(GPS_time);
     */
     
-//    gps.setData((float)GPS_latitude/10000000.0f, (float)GPS_longitude/10000000.0f, GPS_altitude, (float)GPS_speed/100.0f, MwHeading, 0, 0, 0, 0, 0, 0);  // use Magnetometer heading
     if (GPS_fix && GPS_numSat > 5)
     {
       gps.setData(GPS_latitude/10000000.0, GPS_longitude/10000000.0, // Latitude and longitude in degrees decimal (positive for N/E, negative for S/W)
                   GPS_altitude,                                      // Altitude in m (can be negative)
                   GPS_speed/100.0,                                   // Speed m/s
                   MwHeading,                                         // Course over ground in degrees (0-359, 0 = north), use Magnetometer heading
-                  0,0,0,                                             // Date (year - 2000, month, day)
-                  0,0,0);                                            // Time (hour, minute, second) - will be affected by timezone setings in your radio
+                  year(GPS_time)-2000,month(GPS_time),day(GPS_time), // Date (year - 2000, month, day)
+                  hour(GPS_time),minute(GPS_time),second(GPS_time)); // Time (hour, minute, second) - will be affected by timezone setings in your radio
     }
   }
 

@@ -11,6 +11,7 @@
  * FrSkySport Library   (c) Pawelsky 20150725 (http://www.rcgroups.com/forums/showthread.php?t=2245978)
  *                      Not for commercial use
  *                      
+ * Time library for Arduino http://playground.arduino.cc/code/time  https://github.com/PaulStoffregen/Time                   
  *                      
  * MinimOSD Rx ---> ProMini Rx                     
  * ProMini D2 --> 4k7 --> Receiver S.Port  
@@ -33,9 +34,10 @@
 //#define BAUDRATE 38400
 //#define BAUDRATE 19200
 //#define BAUDRATE 9600
-
  
 //#include <avr/pgmspace.h>
+#include <Time.h>
+#include <TimeLib.h>
 #include <SoftwareSerial.h>
 #include "FrSkySportSensor.h"
 //#include "FrSkySportSensorAss.h"
@@ -47,7 +49,6 @@
 #include "FrSkySportSingleWireSerial.h"
 #include "FrSkySportTelemetry.h"
 #include "GlobalVariables.h"
-
 //#include "FrSkySportSensorRpm.h"
 //FrskySportRpm rpm;
 FrSkySportTelemetry telemetry;
