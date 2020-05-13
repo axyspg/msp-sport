@@ -1,3 +1,4 @@
+
 #define SERIALBUFFERSIZE 150
 
 static uint8_t serialBuffer[SERIALBUFFERSIZE]; // this hold the imcoming string from serial O string
@@ -158,10 +159,26 @@ void serialMSPCheck()
     #endif
     
     GPS_directionToHome=read16();
-    #ifdef GPSTIME
-      read8(); //missing
-      GPS_time = read32();        //local time of coord calc - haydent
-    #endif
+    read8(); //missing
+    GPS_time = read32();        //local time of coord calc - haydent
+    //Debug
+    /*Serial.print(GPS_latitude);
+    Serial.print("--");
+    Serial.print(GPS_longitude);
+    Serial.print("--");
+    Serial.println(GPS_time);
+    */
+    
+//    gps.setData((float)GPS_latitude/10000000.0f, (float)GPS_longitude/10000000.0f, GPS_altitude, (float)GPS_speed/100.0f, MwHeading, 0, 0, 0, 0, 0, 0);  // use Magnetometer heading
+    if (GPS_fix && GPS_numSat > 5)
+    {
+      gps.setData(GPS_latitude/10000000.0, GPS_longitude/10000000.0, // Latitude and longitude in degrees decimal (positive for N/E, negative for S/W)
+                  GPS_altitude,                                      // Altitude in m (can be negative)
+                  GPS_speed/100.0,                                   // Speed m/s
+                  MwHeading,                                         // Course over ground in degrees (0-359, 0 = north), use Magnetometer heading
+                  0,0,0,                                             // Date (year - 2000, month, day)
+                  0,0,0);                                            // Time (hour, minute, second) - will be affected by timezone setings in your radio
+    }
   }
   
 
