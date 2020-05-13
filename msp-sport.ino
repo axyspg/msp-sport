@@ -30,7 +30,28 @@
  *
  * ver. 0.16  First release
  *
+ *                      
+ * MinimOSD Rx ---> ProMini Rx                     
+ * ProMini D2 --> 4k7 --> Receiver S.Port  
+ * GND -- GND
+ * 5V -- 5V
+ * No other.                     
  */
+
+
+ /********************       WARNING/STATUS settings      *********************/
+//#define GPSACTIVECHECK 5            // Alerts if no GPS data for more than x secs. Sets GPS sats to zero
+//#define MSPACTIVECHECK 3            // Alerts if no Flight controller data for more than x secs. 
+//#define INCANGLE       25           // Alerts if craft's angle is greater or equal to this value
+
+/******************** Serial speed settings *********************/
+// Choose ONLY ONE option: (match with CleanFlight and MWOSD baudrate)
+#define BAUDRATE 115200
+//#define BAUDRATE 57600
+//#define BAUDRATE 38400
+//#define BAUDRATE 19200
+//#define BAUDRATE 9600
+
  
 #include <avr/pgmspace.h>
 #include <SoftwareSerial.h>
