@@ -1,6 +1,6 @@
 /*
-  FrSky RPM sensor class for Teensy 3.x and 328P based boards (e.g. Pro Mini, Nano, Uno)
-  (c) Pawelsky 20150725
+  FrSky RPM sensor class for Teensy 3.x/4.0/LC, ESP8266, ATmega2560 (Mega) and ATmega328P based boards (e.g. Pro Mini, Nano, Uno)
+  (c) Pawelsky 202000503
   Not for commercial use
 */
 
@@ -23,16 +23,23 @@ class FrSkySportSensorRpm : public FrSkySportSensor
 {
   public:
     FrSkySportSensorRpm(SensorId id = RPM_DEFAULT_ID);
-    void setData(float rpm, float t1 = 0.0, float t2 = 0.0);
-    virtual void send(FrSkySportSingleWireSerial& serial, uint8_t id, uint32_t now);
+    void setData(uint32_t rpm, float t1 = 0.0, float t2 = 0.0);
+    virtual uint16_t send(FrSkySportSingleWireSerial& serial, uint8_t id, uint32_t now);
+    virtual uint16_t decodeData(uint8_t id, uint16_t appId, uint32_t data);
+    uint32_t getRpm();
+    int32_t getT1();
+    int32_t getT2();
 
   private:
-    uint32_t rpm;
-    int32_t t1;
-    int32_t t2;
+    uint32_t rpmData;
+    int32_t t1Data;
+    int32_t t2Data;
     uint32_t rpmTime;
     uint32_t t1Time;
     uint32_t t2Time;
+    uint32_t rpm;
+    int32_t t1;
+    int32_t t2;
 };
 
 #endif // _FRSKY_SPORT_SENSOR_RPM_H_

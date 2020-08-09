@@ -1,6 +1,6 @@
 /*
-  FrSky GPS sensor class for Teensy 3.x and 328P based boards (e.g. Pro Mini, Nano, Uno)
-  (c) Pawelsky 20150725
+  FrSky GPS sensor class for Teensy 3.x/4.0/LC, ESP8266, ATmega2560 (Mega) and ATmega328P based boards (e.g. Pro Mini, Nano, Uno)
+  (c) Pawelsky 202000503
   Not for commercial use
 */
 
@@ -29,18 +29,30 @@ class FrSkySportSensorGps : public FrSkySportSensor
   public:
     FrSkySportSensorGps(SensorId id = GPS_DEFAULT_ID);
     void setData(float lat, float lon, float alt, float speed, float cog, uint8_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second);
-    virtual void send(FrSkySportSingleWireSerial& serial, uint8_t id, uint32_t now);
+    virtual uint16_t send(FrSkySportSingleWireSerial& serial, uint8_t id, uint32_t now);
+    virtual uint16_t decodeData(uint8_t id, uint16_t appId, uint32_t data);
+    float getLat();
+    float getLon();
+    float getAltitude();
+    float getSpeed();
+    float getCog();
+    uint8_t getYear();
+    uint8_t getMonth();
+    uint8_t getDay();
+    uint8_t getHour();
+    uint8_t getMinute();
+    uint8_t getSecond();
 
   private:
     static uint32_t setLatLon(float latLon, bool isLat);
     static uint32_t setDateTime(uint8_t yearOrHour, uint8_t monthOrMinute, uint8_t dayOrSecond, bool isDate);
-    uint32_t lat;
-    uint32_t lon;
-    int32_t alt;
-    uint32_t speed;
-    uint32_t cog;
-    uint32_t date;
-    uint32_t time;
+    uint32_t latData;
+    uint32_t lonData;
+    int32_t altData;
+    uint32_t speedData;
+    uint32_t cogData;
+    uint32_t dateData;
+    uint32_t timeData;
     uint32_t latTime;
     uint32_t lonTime;
     uint32_t altTime;
@@ -48,6 +60,17 @@ class FrSkySportSensorGps : public FrSkySportSensor
     uint32_t cogTime;
     uint32_t dateTime;
     uint32_t timeTime;
+    float lat;
+    float lon;
+    float altitude;
+    float speed;
+    float cog;
+    uint8_t year;
+    uint8_t month;
+    uint8_t day;
+    uint8_t hour;
+    uint8_t minute;
+    uint8_t second;
 };
 
 #endif // _FRSKY_SPORT_SENSOR_GPS_H_

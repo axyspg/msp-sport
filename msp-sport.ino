@@ -28,6 +28,8 @@
  * SoftSerial Library   (c) Mikal Hart (http://arduiniana.org/libraries/newsoftserial/)
  * 
  *
+ * ver. 0.20  Migrated to iNAV Lua Telemetry
+ * 
  * ver. 0.16  First release
  *
  *                      
@@ -40,20 +42,6 @@
  */
 
 
- /********************       WARNING/STATUS settings      *********************/
-//#define GPSACTIVECHECK 5            // Alerts if no GPS data for more than x secs. Sets GPS sats to zero
-//#define MSPACTIVECHECK 3            // Alerts if no Flight controller data for more than x secs. 
-//#define INCANGLE       25           // Alerts if craft's angle is greater or equal to this value
-
-/******************** Serial speed settings *********************/
-// Choose ONLY ONE option: (match with CleanFlight and MWOSD baudrate)
-#define BAUDRATE 115200
-//#define BAUDRATE 57600
-//#define BAUDRATE 38400
-//#define BAUDRATE 19200
-//#define BAUDRATE 9600
-
- 
 #include <avr/pgmspace.h>
 #include <SoftwareSerial.h>
 #include "FrSkySportSensor.h"
@@ -61,32 +49,25 @@
 #include "FrSkySportSensorFcs.h"
 //#include "FrSkySportSensorFlvss.h"
 #include "FrSkySportSensorGps.h"
-//#include "FrSkySportSensorSp2uart.h"
+#include "FrSkySportSensorRpm.h"
 #include "FrSkySportSensorVario.h"
+#include "FrSkySportSensorSp2uart.h"
 #include "FrSkySportSingleWireSerial.h"
 #include "FrSkySportTelemetry.h"
+#include "FrSkySportSensorGyro.h"
+#include "FrSkySportSensorFuel.h"
 #include "Config.h"
 #include "GlobalVariables.h"
 
-#ifdef CFTS_ENABLED
-#include "FrSkySportSensorRpmMod.h"
-  class FrSkySportStatus: public FrSkySportSensorRpmMod
-  {
-    public:
-      void send(FrSkySportSingleWireSerial& serial, uint8_t id, uint32_t now);
-      
-    private:
-  };
-  FrSkySportStatus sp_status;
-#else
-#include "FrSkySportSensorRpm.h"
-  FrskySportSensorRpm sp_status;
-#endif
-
 FrSkySportTelemetry telemetry;
-FrSkySportSensorFcs vfas;
+FrSkySportSensorFcs vfcs;
 FrSkySportSensorGps gps;
+FrSkySportSensorRpm rpm;
 FrSkySportSensorVario vario;
+FrSkySportSensorSp2uart sp2uart;
+FrSkySportSensorGyro gyro;
+FrSkySportSensorFuel fuel;
+
 
 //------------------------------------------------------------------------
 void setup()
@@ -135,97 +116,143 @@ void setup()
   Serial.flush();
 
   // Initialize SmartPort
-  telemetry.begin(FrSkySportSingleWireSerial::SOFT_SERIAL_PIN_2, &vfas, &gps, &vario, &sp_status);
+  telemetry.begin(FrSkySportSingleWireSerial::SOFT_SERIAL_PIN_2, &vfcs, &gps, &vario, &sp2uart, &rpm, &gyro, &fuel);
 
   // we are ready, so let MinimOSD start
   digitalWrite(MINIMOSD_RST, HIGH);  
 }
 
+
 //------------------------------------------------------------------------
 void loop()
 {
-  if(millis() > timer.seconds+1000)     // this execute 1 time a second
-  {
-    timer.seconds+=1000;
-//    timer.tenthSec=0;
-//    onTime++;
-    #ifdef GPSACTIVECHECK
-      if (timer.GPS_active==0){
-        GPS_numSat=0;
-      }
-      else {
-        timer.GPS_active--;
-      }      
-    #endif // GPSACTIVECHECK 
-    if (timer.MSP_active>0){
-      timer.MSP_active--;
-    }  
-  }
-  
+  uint32_t poll = 0;
+
   // Receive and process MSP protocol
   serialMSPreceive(1);
-  
-  // Send Smartport data telemetry to receiver if MSP did NOT timeout
-  if(timer.MSP_active==0) telemetry.reset();
-    else telemetry.send();  
+
+  if(millis() > poll + 500)     // this execute 2 times per second
+  {
+    poll = millis(); 
+
+    // T1 and T2 special values
+    setSensorT1andT2();
+
+    // send smartport data
+    telemetry.send();
+  }
 }
+
 
 //------------------------------------------------------------------------
-void FrSkySportStatus::send(FrSkySportSingleWireSerial& serial, uint8_t id, uint32_t now)
+// FSSP_DATAID_T1         0x0400
+// FSSP_DATAID_T2         0x0410
+// FSSP_DATAID_RPM        0x050F
+void setSensorT1andT2()
 {
-  if(sensorId != id) return;
+  uint16_t gT1, gT2 = 0;
+  //
+  // Calc T1
+  //
+  gT1 = 0;
 
-#ifdef CFTS_ENABLED
-  static uint32_t sid = 0;
-  
-  static int incr = 20;
-  static int val = HIGH;
-  
-  incr++;
-  if (incr >= 20)
-  {
-    incr = 0;
-//    digitalWrite(LEDPIN, val);
-    val = (val ? LOW : HIGH);
-  }
+  // ones column (lua modeE)
+//    if (mode.armed) tmpi += 1;
+//    else tmpi += 2;
 
-  sid++;
-  if (sid > 2) sid = 0;
+  if (gMwSensorActive & mode.armed) gT1 += 4;
 
-  uint32_t packet = 0;
-  
-  switch(sid)
-  {
-      case 0: // check point, protocol and sensors info
-          packet = (MwProfile & 0x0F);
-          packet |= 0x10; // Most significant word of last byte is protocol version and least significant is profile number 
-          packet |= (MwSensorPresent << 8); // Sensors
-          break;
+  // tens column (lua modeD)
+  if (gMwSensorActive & mode.stable)  gT1 += 10;
+  else if (gMwSensorActive & mode.horizon) gT1 += 20;
+  else gT1 += 40; // acro
 
-      case 1: // mode flags (boxes)
-          packet = MwSensorActive;
-          break;
+  // hundreds column (lua modeC)
+  if (gMwSensorActive & mode.mag)     gT1 += 100;
+  if (gMwSensorActive & mode.baro)    gT1 += 200;
+  if (gMwSensorActive & mode.gpshold) gT1 += 400;
 
-      case 2: // num gps and status flags
-          MwStateFlags = 0x00;
-          if (GPS_fix) MwStateFlags |= 0x02;
-          // too much inclination triggers INC alert
-          if (abs(MwAngle[0] / 10) >= INCANGLE || abs(MwAngle[1] / 10) >= INCANGLE) MwStateFlags |= 0x08;
-          
-          packet = GPS_numSat | (MwStateFlags << 8);// | (MwArmedFlags << 16);
-          break;
-  }
+  // thousands column (lua modeB)
+  if (gMwSensorActive & mode.gpshome) gT1 += 1000;
+  if (gMwSensorActive & mode.cruise)  gT1 += 2000;
+  if (gMwSensorActive & mode.gpsmission)  gT1 += 4000;
+  // HEADFREE MODE tmpi += 8000;
 
-  packet = packet & 0x0FFFFFFF;
-  packet = packet | (sid << 28);
+  //ten thousands column (lua modeA)
+  if (gMwSensorActive & mode.flaperon) gT1 += 10000;
+  if (gMwSensorActive & mode.failsafe) gT1 += 20000;
+  if (gMwSensorActive & mode.autotune) gT1 += 40000;
 
-  t2 = packet;
-  // Force sending of T2 value (this skips t1 and rpm values!)
-  t2Time = 0;
-  sensorDataIdx = 1;
 
-  FrSkySportSensorRpmMod::send(serial, id, now);
-#endif
+/* From iNAV CODE:    
+    if (!isArmingDisabled())
+        tmpi += 1;
+    else
+        tmpi += 2;
+    if (ARMING_FLAG(ARMED))
+        tmpi += 4;
+
+    // tens column
+    if (FLIGHT_MODE(ANGLE_MODE))
+        tmpi += 10;
+    if (FLIGHT_MODE(HORIZON_MODE))
+        tmpi += 20;
+    if (FLIGHT_MODE(MANUAL_MODE))
+        tmpi += 40;
+
+    // hundreds column
+    if (FLIGHT_MODE(HEADING_MODE))
+        tmpi += 100;
+    if (FLIGHT_MODE(NAV_ALTHOLD_MODE))
+        tmpi += 200;
+    if (FLIGHT_MODE(NAV_POSHOLD_MODE))
+        tmpi += 400;
+
+    // thousands column
+    if (FLIGHT_MODE(NAV_RTH_MODE))
+        tmpi += 1000;
+    if (FLIGHT_MODE(NAV_CRUISE_MODE)) // intentionally out of order and 'else-ifs' to prevent column overflow
+        tmpi += 8000;
+    else if (FLIGHT_MODE(NAV_WP_MODE))
+        tmpi += 2000;
+    else if (FLIGHT_MODE(HEADFREE_MODE))
+        tmpi += 4000;
+
+    // ten thousands column
+    if (FLIGHT_MODE(FLAPERON))
+        tmpi += 10000;
+    if (FLIGHT_MODE(FAILSAFE_MODE))
+        tmpi += 40000;
+    else if (FLIGHT_MODE(AUTO_TUNE)) // intentionally reverse order and 'else-if' to prevent 16-bit overflow
+        tmpi += 20000;
+*/
+
+  //
+  // Calc T2
+  //
+  // ones and tens columns (# of satellites 0 - 99)
+  gT2 += constrain(gGPS_sats, 0, 99);
+
+  // hundreds column (satellite accuracy HDOP: 0 = worst [HDOP > 5.5], 9 = best [HDOP <= 1.0])
+  // From iNAV CODE:
+  //tmpi += (9 - constrain((gGPS_hdop - 51) / 50, 0, 9)) * 100;
+
+  /*uint16_t hdop = ((gGPS_hdop - 51) / 50);
+  if (hdop < 0) hdop = 0;
+  if (hdop > 9) hdop = 9;
+  hdop = 9 - hdop * 100;
+  */
+  gT2 += (9 - constrain((gGPS_hdop - 51) / 50, 0, 9)) * 100;
+
+  // thousands column (GPS fix status)
+  if (gGPS_fix) gT2 += 1000;
+  if (gGPS_homeFix) gT2 += 2000;
+
+  // TODO:
+  // from iNAV CODE: 
+  //if (ARMING_FLAG(ARMED) && IS_RC_MODE_ACTIVE(BOXHOMERESET) && !FLIGHT_MODE(NAV_RTH_MODE) && !FLIGHT_MODE(NAV_WP_MODE))
+  //  tmpi += 4000;
+
+  // set sensor data. RPM no implemented, set RPM to 0
+  rpm.setData(0, gT1, gT2);
 }
-
-
